@@ -1,33 +1,36 @@
 import request from 'supertest';
-import app from '../app'; // Import the Express app
+import app from '../app';
 import { Product } from '../models/index';
 import { sequelize } from '../models/setupDb';
+import logger from '../logger';
 
 jest.mock('../models');
 
 jest.mock('../middlewares/auth.middleware', () => ({
     authenticateToken: jest.fn((req, res, next) => {
-        req.body.advisorId = 1; // Mock authentication middleware
+        req.body.advisorId = 1;
         next();
     }),
 }));
 
+jest.mock('../logger', () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+}));
+
+beforeAll(async () => {
+    await sequelize.sync({ force: true });
+});
+
+afterAll(async () => {
+    await sequelize.close();
+});
+
+afterEach(() => {
+    jest.clearAllMocks();
+});
+
 describe('ProductController - Create Product', () => {
-    const logSpy = jest.spyOn(global.console, 'error');
-
-    beforeAll(async () => {
-        await sequelize.sync({ force: true }); // Sync the database before tests
-    });
-
-    afterAll(async () => {
-        await sequelize.close(); // Close the connection after tests
-        logSpy.mockRestore();
-    });
-
-    afterEach(() => {
-        logSpy.mockClear();
-    });
-
     it('should create a new product for the authenticated advisor', async () => {
         (Product.create as jest.Mock).mockResolvedValue({
             id: 1,
@@ -49,6 +52,13 @@ describe('ProductController - Create Product', () => {
         expect(response.status).toBe(201);
         expect(response.body.name).toBe('Test Product');
         expect(response.body.advisorId).toBe(1);
+        expect(logger.info).toHaveBeenCalledWith(
+            'Product created successfully',
+            {
+                productId: 1,
+                advisorId: 1,
+            },
+        );
     });
 
     it('should return 422 if product validation fails', async () => {
@@ -65,9 +75,12 @@ describe('ProductController - Create Product', () => {
         expect(response.body.error).toBe(
             'Number must be greater than 0 at "price"',
         );
+        expect(logger.error).toHaveBeenCalledWith(
+            '[ERROR] 422 - Number must be greater than 0 at "price"',
+        );
     });
 
-    it('should handle uncaught errors', async () => {
+    it('should handle thrown errors', async () => {
         (Product.create as jest.Mock).mockRejectedValue(
             new Error('Internal server error'),
         );
@@ -83,7 +96,9 @@ describe('ProductController - Create Product', () => {
 
         expect(response.status).toBe(500);
         expect(response.body.error).toBe('Error: Internal server error');
-        expect(logSpy).toHaveBeenCalledTimes(1);
+        expect(logger.error).toHaveBeenCalledWith(
+            '[ERROR] 500 - Error: Internal server error',
+        );
     });
 });
 
@@ -106,6 +121,10 @@ describe('ProductController - Get Products', () => {
         expect(response.status).toBe(200);
         expect(response.body.length).toBe(1);
         expect(response.body[0].name).toBe('Test Product');
+        expect(logger.info).toHaveBeenCalledWith('Total products fetched', {
+            productLength: 1,
+            advisorId: 1,
+        });
     });
 
     it('should return an empty array if no products exist', async () => {
@@ -117,6 +136,10 @@ describe('ProductController - Get Products', () => {
 
         expect(response.status).toBe(200);
         expect(response.body.length).toBe(0);
+        expect(logger.info).toHaveBeenCalledWith('Total products fetched', {
+            productLength: 0,
+            advisorId: 1,
+        });
     });
 });
 
@@ -136,6 +159,26 @@ describe('ProductController - Get Product By ID', () => {
 
         expect(response.status).toBe(200);
         expect(response.body.name).toBe('Test Product');
+        expect(logger.info).toHaveBeenCalledWith(
+            'Product retrieved successfully',
+            {
+                productId: 1,
+                advisorId: 1,
+            },
+        );
+    });
+
+    it('should return 404 if the product does not exist', async () => {
+        (Product.findByPk as jest.Mock).mockResolvedValue(null);
+
+        const response = await request(app)
+            .get('/api/products/1')
+            .set('Authorization', 'Bearer fakeAccessToken');
+
+        expect(response.status).toBe(404);
+        expect(logger.error).toHaveBeenCalledWith(
+            '[ERROR] 404 - Product not found {"advisorId":1,"productId":"1"}',
+        );
     });
 
     it('should return unauthorized when the product does not belong to the advisor ', async () => {
@@ -151,5 +194,8 @@ describe('ProductController - Get Product By ID', () => {
             .set('Authorization', 'Bearer fakeAccessToken');
 
         expect(response.status).toBe(403);
+        expect(logger.error).toHaveBeenCalledWith(
+            '[ERROR] 403 - Not authorized to get this product {"advisorId":1,"productId":1}',
+        );
     });
 });

@@ -59,3 +59,4 @@ JWT: JSON Web Token for authentication.
 bcryptjs: Password hashing.
 Zod: Input validation
 jest & supertest: Used for testing.
+Winston: Logging

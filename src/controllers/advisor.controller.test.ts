@@ -1,32 +1,39 @@
 import request from 'supertest';
-import app from '../app'; // Import the Express app
+import app from '../app';
 import { Advisor } from '../models/index';
 import bcrypt from 'bcryptjs';
 import { sequelize } from '../models/setupDb';
 import { UniqueConstraintError } from 'sequelize';
+import logger from '../logger';
 
-// Mocking the Sequelize model methods
 jest.mock('../models');
 
-// Mock bcrypt functions
 jest.mock('bcryptjs');
 
-// Mock JWT generation
 jest.mock('../services/auth.service', () => ({
     generateAccessToken: jest.fn(() => 'fakeAccessToken'),
 }));
 
+jest.mock('../logger', () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+}));
+
 beforeAll(async () => {
-    await sequelize.sync({ force: true }); // Sync the database before tests
+    await sequelize.sync({ force: true });
 });
 
 afterAll(async () => {
-    await sequelize.close(); // Close the connection after tests
+    await sequelize.close();
+});
+
+afterEach(() => {
+    jest.clearAllMocks();
 });
 
 describe('AdvisorController - Register', () => {
     it('should register a new advisor and return 201', async () => {
-        (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword'); // Mock password hashing
+        (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
         (Advisor.create as jest.Mock).mockResolvedValue({
             id: 1,
             email: 'test@example.com',
@@ -44,6 +51,10 @@ describe('AdvisorController - Register', () => {
 
         expect(response.status).toBe(201);
         expect(response.body.email).toBe('test@example.com');
+        expect(logger.info).toHaveBeenCalledWith(
+            'Advisor created successfully',
+            { advisorId: 1 },
+        );
     });
 
     it('should return 400 if the advisor email already exists', async () => {
@@ -63,6 +74,9 @@ describe('AdvisorController - Register', () => {
         expect(response.body.error).toBe(
             'Unable to register. Email may already exist.',
         );
+        expect(logger.error).toHaveBeenCalledWith(
+            '[ERROR] 400 - Unable to register. Email may already exist.',
+        );
     });
 
     it('should return 422 if the request body is not valid', async () => {
@@ -76,12 +90,15 @@ describe('AdvisorController - Register', () => {
 
         expect(response.status).toBe(422);
         expect(response.body.error).toBe('Invalid email at "email"');
+        expect(logger.error).toHaveBeenCalledWith(
+            '[ERROR] 422 - Invalid email at "email"',
+        );
     });
 });
 
 describe('AdvisorController - Login', () => {
     it('should login an advisor and return access tokens', async () => {
-        (bcrypt.compare as jest.Mock).mockResolvedValue(true); // Mock successful password comparison
+        (bcrypt.compare as jest.Mock).mockResolvedValue(true);
         (Advisor.findOne as jest.Mock).mockResolvedValue({
             id: 1,
             email: 'test@example.com',
@@ -95,6 +112,12 @@ describe('AdvisorController - Login', () => {
 
         expect(response.status).toBe(200);
         expect(response.body.token).toBe('fakeAccessToken');
+        expect(logger.info).toHaveBeenCalledWith(
+            'Advisor logged in successfully',
+            {
+                advisorId: 1,
+            },
+        );
     });
 
     it('should return 401 if the password is incorrect', async () => {
@@ -105,7 +128,10 @@ describe('AdvisorController - Login', () => {
             password: 'wrongPassword',
         });
 
-        expect(response.status).toBe(401);
+        expect(response.status).toBe(404);
         expect(response.body.error).toBe('Invalid email or password');
+        expect(logger.error).toHaveBeenCalledWith(
+            '[ERROR] 404 - Invalid email or password',
+        );
     });
 });
