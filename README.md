@@ -52,11 +52,19 @@ request
 ## Technologies Used
 
 Node.js: JavaScript runtime for building scalable applications.
+
 Express.js: Web framework for creating RESTful APIs.
+
 Sequelize: ORM for interacting with the database.
+
 SQLite: Database used for simplicity (can be easily replaced with PostgreSQL, MySQL, etc.).
+
 JWT: JSON Web Token for authentication.
+
 bcryptjs: Password hashing.
-Zod: Input validation
+
+Zod: Input validation.
+
 jest & supertest: Used for testing.
-Winston: Logging
+
+Winston: Logging.
