@@ -5,6 +5,7 @@ import { Advisor } from '../models';
 import { generateAccessToken } from '../services/auth.service';
 import { UniqueConstraintError } from 'sequelize';
 import { errorResponseHandler } from '../utils/errorResponseHandler';
+import logger from '../logger';
 
 export async function register(req: Request, res: Response) {
     try {
@@ -14,6 +15,7 @@ export async function register(req: Request, res: Response) {
 
         const token = generateAccessToken(id);
 
+        logger.info('Advisor created successfully', { advisorId: id });
         res.status(201).json({
             name,
             email,
@@ -37,9 +39,13 @@ export async function login(req: Request, res: Response) {
         const advisor = await Advisor.findOne({ where: { email } });
 
         if (!advisor || !(await bcrypt.compare(password, advisor.password)))
-            res.status(401).json({ error: 'Invalid email or password' });
+            errorResponseHandler(res, 'Invalid email or password', 404);
         else {
             const token = generateAccessToken(advisor.id);
+
+            logger.info('Advisor logged in successfully', {
+                advisorId: advisor.id,
+            });
 
             res.json({ token });
         }

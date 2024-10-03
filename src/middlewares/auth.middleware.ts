@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { errorResponseHandler } from '../utils/errorResponseHandler';
+import logger from '../logger';
 
 interface AdvisorPayload {
     id: number;
@@ -20,7 +21,9 @@ export function authenticateToken(
         jwt.verify(token, process.env.JWT_SECRET as string, (err, payload) => {
             if (err) errorResponseHandler(res, 'Not authenticated', 401);
             else {
-                req.body.advisorId = (payload as AdvisorPayload).id;
+                const { id } = payload as AdvisorPayload;
+                req.body.advisorId = id;
+                logger.info('User authenticated', { advisorId: id });
                 next();
             }
         });

@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import logger from '../logger';
 
 export const errorResponseHandler = (
     res: Response,
@@ -8,7 +9,7 @@ export const errorResponseHandler = (
     const errorMessage = error?.toString();
     const status = statusCode || 500;
 
-    console.error(`[ERROR] ${status} - ${errorMessage}`);
+    logger.error(`[ERROR] ${status} - ${errorMessage}`);
 
     res.status(status).json({
         error: errorMessage,
