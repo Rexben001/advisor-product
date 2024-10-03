@@ -1,0 +1,22 @@
+{
+    "compilerOptions": {
+        "moduleResolution": "node",
+        "target": "es6",
+        "module": "commonjs",
+        "outDir": "build",
+        "rootDir": "src",
+        "esModuleInterop": true,
+        "allowJs": true,
+        "strict": true,
+        "sourceMap": true,
+        "inlineSources": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "strictPropertyInitialization": false,
+        "forceConsistentCasingInFileNames": true,
+        "useUnknownInCatchVariables": false
+    },
+    "include": ["src/**/*.ts", "src/**/*.js"],
+    "exclude": ["node_modules"],
+    "typeRoots": ["./src/@types", "./node_modules/@types"]
+}
